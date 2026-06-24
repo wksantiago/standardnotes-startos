@@ -1,4 +1,4 @@
-FROM node:20.10.0-alpine
+FROM node:20.19-alpine
 
 RUN apk add --no-cache g++ make python3 openssl bash curl redis
 

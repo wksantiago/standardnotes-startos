@@ -1,11 +1,13 @@
 #!/bin/sh
 set -e
 
-APP_DATA=/opt/server/packages/home-server/data
+APP_DIR=/opt/server/packages/home-server
+# home-server resolves its data directory as ${__dirname}/../data. The compiled
+# entrypoint runs from dist/bin/server.js, so the live path is dist/data. Point
+# that at the mounted volume so the SQLite database and uploads are persisted
+# and captured by StartOS backups.
+APP_DATA="$APP_DIR/dist/data"
 
-# home-server resolves its SQLite database and file uploads under
-# packages/home-server/data. Point that at the mounted volume so all state is
-# captured by StartOS backups.
 mkdir -p /data/database /data/uploads
 rm -rf "$APP_DATA"
 ln -s /data "$APP_DATA"
@@ -16,5 +18,18 @@ ln -s /data "$APP_DATA"
 redis-server --bind 127.0.0.1 --port 6379 --save '' --appendonly no --daemonize yes
 export REDIS_URL=redis://localhost:6379
 
-cd /opt/server/packages/home-server
-exec yarn node dist/bin/server.js
+shutdown() {
+  # Negative PID signals the whole process group so the node child receives
+  # SIGTERM even though it is launched through the Yarn PnP runtime; the home
+  # server installs its own graceful shutdown handler.
+  [ -n "$APP_PID" ] && kill -TERM -"$APP_PID" 2>/dev/null || true
+  wait "$APP_PID" 2>/dev/null || true
+  redis-cli -h 127.0.0.1 -p 6379 shutdown nosave 2>/dev/null || true
+  exit 0
+}
+trap shutdown TERM INT
+
+cd "$APP_DIR"
+setsid yarn node dist/bin/server.js &
+APP_PID=$!
+wait "$APP_PID"
