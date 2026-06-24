@@ -18,6 +18,12 @@ ln -s /data "$APP_DATA"
 redis-server --bind 127.0.0.1 --port 6379 --save '' --appendonly no --daemonize yes
 export REDIS_URL=redis://localhost:6379
 
+# StartOS exposes this service at a dynamic host (LAN IP, .local, Tor, clearnet).
+# An empty cookie domain makes the session cookies host-only so they bind to
+# whatever address the client uses; the upstream default of standardnotes.com
+# would never match and breaks session refresh.
+export COOKIE_DOMAIN=""
+
 shutdown() {
   # Negative PID signals the whole process group so the node child receives
   # SIGTERM even though it is launched through the Yarn PnP runtime; the home
