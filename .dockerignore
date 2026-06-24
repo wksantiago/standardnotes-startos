@@ -1,0 +1,9 @@
+.git
+.gitmodules
+node_modules
+javascript
+*.s9pk
+server/.git
+server/node_modules
+server/packages/*/node_modules
+server/packages/*/dist
