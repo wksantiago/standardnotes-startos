@@ -41,10 +41,14 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ready: {
       display: i18n('Server API'),
       fn: () =>
-        sdk.healthCheck.checkPortListening(effects, uiPort, {
-          successMessage: i18n('The Standard Notes Server is ready'),
-          errorMessage: i18n('The Standard Notes Server is not responding'),
-        }),
+        sdk.healthCheck.checkWebUrl(
+          effects,
+          `http://localhost:${uiPort}/healthcheck`,
+          {
+            successMessage: i18n('The Standard Notes Server is ready'),
+            errorMessage: i18n('The Standard Notes Server is not responding'),
+          },
+        ),
     },
     requires: [],
   })
