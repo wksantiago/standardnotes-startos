@@ -17,6 +17,9 @@ const dict = {
   'Public URL clients use to reach the files server (the address you point your Standard Notes app at). Required only if you upload files. Leave blank to disable.': 8,
   'Configuration saved': 9,
   'The service is restarting with the new settings.': 10,
+  'Premium Activation Mode': 11,
+  'Temporarily exposes an unauthenticated endpoint to grant a Standard Notes subscription to a self-hosted account. Enable it only while activating premium, then turn it back off. While enabled it also forces legacy (non-cookie) sessions.': 12,
+  'Leaves an unauthenticated premium-activation endpoint exposed and forces legacy sessions. Turn this off once activation is complete.': 13,
 } as const
 
 /**

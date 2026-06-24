@@ -13,6 +13,16 @@ const inputSpec = InputSpec.of({
     required: false,
     default: null,
   }),
+  premiumActivationMode: Value.toggle({
+    name: i18n('Premium Activation Mode'),
+    description: i18n(
+      'Temporarily exposes an unauthenticated endpoint to grant a Standard Notes subscription to a self-hosted account. Enable it only while activating premium, then turn it back off. While enabled it also forces legacy (non-cookie) sessions.',
+    ),
+    warning: i18n(
+      'Leaves an unauthenticated premium-activation endpoint exposed and forces legacy sessions. Turn this off once activation is complete.',
+    ),
+    default: false,
+  }),
 })
 
 export const configure = sdk.Action.withInput(
@@ -30,11 +40,13 @@ export const configure = sdk.Action.withInput(
     const s = await storeJson.read().once()
     return {
       filesServerUrl: s?.filesServerUrl || null,
+      premiumActivationMode: s?.premiumActivationMode ?? false,
     }
   },
   async ({ effects, input }) => {
     await storeJson.merge(effects, {
       filesServerUrl: input.filesServerUrl ?? '',
+      premiumActivationMode: input.premiumActivationMode,
     })
     await effects.restart()
     return {

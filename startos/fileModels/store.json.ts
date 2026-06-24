@@ -15,6 +15,10 @@ const storeConfigSchema = z.object({
   // Public URL clients use to reach the files server. Set this to the address
   // you point your Standard Notes app at if you upload files. Empty = unset.
   filesServerUrl: z.string().catch(''),
+  // Temporarily exposes the unauthenticated premium-activation endpoint
+  // (E2E_TESTING) so a self-hosted account can be granted a subscription. Also
+  // forces legacy sessions while on, so leave it off except during activation.
+  premiumActivationMode: z.boolean().catch(false),
 })
 
 export type StoreConfig = z.infer<typeof storeConfigSchema>

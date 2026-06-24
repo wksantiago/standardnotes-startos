@@ -22,6 +22,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     VALET_TOKEN_SECRET: store.valetTokenSecret,
   }
   if (store.filesServerUrl) env.FILES_SERVER_URL = store.filesServerUrl
+  if (store.premiumActivationMode) env.E2E_TESTING = 'true'
 
   const subcontainer = await sdk.SubContainer.of(
     effects,
