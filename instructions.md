@@ -69,7 +69,7 @@ Because `localhost:3123` is on that list, the workaround is to make this server 
 ### Granting the subscription
 
 1. In the **Configure** action, turn **Premium Activation Mode** ON and save.
-2. Grant your account a subscription (replace the email, CA path, and server address):
+2. Grant your account a subscription. Run the following from a terminal on any computer that can reach the server's API address over the network and has the root CA file (for example your own laptop or desktop — not on the StartOS server itself, and not inside the app). Replace the email, CA path, and server address:
 
    ```sh
    curl --cacert /path/to/root-ca.crt -X POST https://<server-api-address>/e2e/activate-premium \
