@@ -46,8 +46,82 @@ A response with no certificate error means the server and CA are trusted; only t
 Use the **Configure** action to set:
 
 - **Files Server URL:** the public address clients use to reach the files server. Set this to the address you point your Standard Notes app at if you use file attachments. Leave blank to disable file uploads.
+- **Premium Activation Mode:** temporarily exposes an unauthenticated endpoint used to grant a subscription to a self-hosted account (see [Premium features](#premium-features)). Leave it off except while activating; it also forces legacy sessions while enabled.
 
 Saving the configuration restarts the service.
+
+## Premium features
+
+Standard Notes' premium features (the Super editor, extra themes, nested tags, larger uploads, etc.) are gated by a **subscription role** on your account. This package can grant that role at no cost, but a limitation imposed by the **Standard Notes apps** — not by this package — restricts where it takes effect.
+
+### The first-party host limitation
+
+The official Standard Notes apps only honor an online subscription when connected to one of their **first-party** sync hosts, which are hardcoded in the app:
+
+- `api.standardnotes.com`
+- `sync.standardnotes.org`
+- `localhost:3123`
+
+Any other sync server — including this self-hosted one at its StartOS address or your own domain — is treated as a **third-party host**, and the apps **ignore the online subscription for premium unlocking**. Your notes still sync perfectly; only the premium editors and themes stay locked. This is a client-side design decision and cannot be changed from the server.
+
+Because `localhost:3123` is on that list, the workaround is to make this server reachable at `https://localhost:3123` on your computer (see [Unlocking premium on desktop](#unlocking-premium-on-desktop)).
+
+### Granting the subscription
+
+1. In the **Configure** action, turn **Premium Activation Mode** ON and save.
+2. Grant your account a subscription (replace the email, CA path, and server address):
+
+   ```sh
+   curl --cacert /path/to/root-ca.crt -X POST https://<server-api-address>/e2e/activate-premium \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"you@example.com","subscriptionId":1,"subscriptionPlanName":"PRO_PLAN","uploadBytesLimit":107374182400,"endsAt":4102444800000}'
+   ```
+
+   `endsAt` is a millisecond timestamp (the example is the year 2100). A `{"message":"Premium features activated."}` response means the `PRO_USER` role and subscription are stored in your data volume (and captured by backups).
+3. Turn **Premium Activation Mode** OFF and save.
+
+The grant persists across restarts, updates, and backups. By itself it unlocks nothing in the app until the app is connected through a first-party host.
+
+### Unlocking premium on desktop
+
+Run a local TCP proxy mapping `localhost:3123` to your StartOS server, then point the desktop app at `https://localhost:3123`. The StartOS certificate already includes a `localhost` SAN, so it validates once the root CA is trusted.
+
+One-off (stops when the terminal closes):
+
+```sh
+socat TCP-LISTEN:3123,reuseaddr,fork TCP:<server-ip>:<server-port>
+```
+
+Persistent (Linux, systemd user service):
+
+```sh
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/sn-tunnel.service <<'EOF'
+[Unit]
+Description=Standard Notes localhost:3123 tunnel to StartOS
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/socat TCP-LISTEN:3123,reuseaddr,fork TCP:<server-ip>:<server-port>
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now sn-tunnel.service
+loginctl enable-linger "$USER"   # keep it running across logout/reboot
+```
+
+Then in the desktop app set the custom sync server to `https://localhost:3123`, sign out, and sign back in — the premium editors unlock. If StartOS later reassigns the server's IP or port, update the target in the service and run `systemctl --user restart sn-tunnel.service`.
+
+### Limitations
+
+- **Mobile and other devices:** there is no `localhost` server on a phone, so the tunnel cannot work there. Premium on the official mobile apps against a self-hosted server is not achievable.
+- **Custom public domains:** a domain such as `notes.example.com` is still a third-party host, so premium stays locked even over a public HTTPS address. Sync itself works everywhere.
+- **Offline activation does not work here:** the home server's offline-features endpoint cannot identify the user in single-process mode, and the apps only accept `localhost` as an offline features host, so this path is a dead end.
+- The only way to get tunnel-free premium (including on mobile) is to run a **patched Standard Notes app** that adds your host to its first-party allowlist — a separate project outside this package.
 
 ## Sessions and addresses
 
