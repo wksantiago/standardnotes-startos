@@ -4,7 +4,7 @@ import { long, short } from './i18n'
 export const manifest = setupManifest({
   id: 'standardnotes-server',
   title: 'Standard Notes Server',
-  license: 'AGPL-3.0-or-later',
+  license: 'MIT',
   packageRepo: 'https://github.com/wksantiago/standardnotes-startos',
   upstreamRepo: 'https://github.com/standardnotes/server',
   marketingUrl: 'https://github.com/standardnotes/server',
