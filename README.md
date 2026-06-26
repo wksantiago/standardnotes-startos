@@ -11,7 +11,7 @@ Built from the upstream [`standardnotes/server`](https://github.com/standardnote
 This package targets **StartOS 0.4.x** and uses the StartOS TypeScript SDK.
 
 ```sh
-git clone --recurse-submodules https://github.com/privkeyio/standardnotes-startos
+git clone --recurse-submodules https://github.com/wksantiago/standardnotes-startos
 cd standardnotes-startos
 make            # produces standardnotes-server_x86_64.s9pk
 make install    # installs to the host in ~/.startos/config.yaml
