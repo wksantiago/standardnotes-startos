@@ -1,4 +1,4 @@
-# standardnotes-server-startos
+# standardnotes-startos
 
 StartOS package for the [Standard Notes](https://standardnotes.com) self-hosted [server](https://github.com/standardnotes/server) — the end-to-end encrypted notes sync backend.
 
@@ -11,8 +11,8 @@ Built from the upstream [`standardnotes/server`](https://github.com/standardnote
 This package targets **StartOS 0.4.x** and uses the StartOS TypeScript SDK.
 
 ```sh
-git clone --recurse-submodules https://github.com/privkeyio/standardnotes-server-startos
-cd standardnotes-server-startos
+git clone --recurse-submodules https://github.com/privkeyio/standardnotes-startos
+cd standardnotes-startos
 make            # produces standardnotes-server_x86_64.s9pk
 make install    # installs to the host in ~/.startos/config.yaml
 ```
