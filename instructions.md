@@ -84,7 +84,11 @@ The grant persists across restarts, updates, and backups. By itself it unlocks n
 
 ### Unlocking premium on desktop
 
-Run a local TCP proxy mapping `localhost:3123` to your StartOS server, then point the desktop app at `https://localhost:3123`. The StartOS certificate already includes a `localhost` SAN, so it validates once the root CA is trusted.
+Premium unlocks only when the desktop app reaches the server at `https://localhost:3123`. Run a local proxy on port `3123` that forwards to your server, then point the app at it. There are two ways to set up the proxy, depending on which certificate your server's address presents.
+
+#### Option A — forward to the StartOS address (StartOS certificate)
+
+Use this when you connect to the server's StartOS LAN/clearnet address, which serves a certificate signed by your StartOS root CA. That certificate already includes a `localhost` SAN, so a plain TCP passthrough validates once the root CA is trusted (see [Trusting the HTTPS certificate](#trusting-the-https-certificate)).
 
 One-off (stops when the terminal closes):
 
@@ -100,6 +104,7 @@ cat > ~/.config/systemd/user/sn-tunnel.service <<'EOF'
 [Unit]
 Description=Standard Notes localhost:3123 tunnel to StartOS
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/bin/socat TCP-LISTEN:3123,reuseaddr,fork TCP:<server-ip>:<server-port>
@@ -114,12 +119,70 @@ systemctl --user enable --now sn-tunnel.service
 loginctl enable-linger "$USER"   # keep it running across logout/reboot
 ```
 
-Then in the desktop app set the custom sync server to `https://localhost:3123`, sign out, and sign back in — the premium editors unlock. If StartOS later reassigns the server's IP or port, update the target in the service and run `systemctl --user restart sn-tunnel.service`.
+The drawback is that `<server-ip>:<server-port>` is the StartOS address, which can change; update the service and run `systemctl --user restart sn-tunnel.service` if it does.
+
+#### Option B — forward to a public domain (its own TLS certificate)
+
+Use this when you front the server with a public domain (for example `notes.example.com`) that serves its own certificate, such as Let's Encrypt. A plain passthrough fails here: the app connects to `https://localhost:3123` but is handed a certificate for the domain, so the hostname does not match. Instead, terminate TLS at the proxy — present a self-signed `localhost` certificate to the app, and have `socat` open its own TLS connection out to the domain. This is also more stable, since it does not depend on the changing StartOS LAN address.
+
+1. Generate a self-signed `localhost` certificate (once; reuse the files on every desktop):
+
+   ```sh
+   mkdir -p ~/.config/sn-tunnel && cd ~/.config/sn-tunnel
+   openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+     -keyout localhost.key -out localhost.crt \
+     -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+   cat localhost.crt localhost.key > localhost.pem
+   ```
+
+2. Trust `localhost.crt` in the app's trust store (snap NSS database shown; use `~/.pki/nssdb` for a non-snap install), then fully quit and reopen the app:
+
+   ```sh
+   certutil -d sql:"$HOME/snap/standard-notes/current/.pki/nssdb" -A -t "C,," \
+     -n "Local localhost proxy" -i ~/.config/sn-tunnel/localhost.crt
+   ```
+
+   This is your own `localhost` certificate, not the StartOS root CA — do not import the StartOS CA for this option.
+
+3. Run the TLS-terminating proxy as a systemd user service (replace `<your-domain>`):
+
+   ```sh
+   mkdir -p ~/.config/systemd/user
+   cat > ~/.config/systemd/user/sn-tunnel.service <<'EOF'
+   [Unit]
+   Description=Standard Notes localhost:3123 TLS tunnel
+   After=network-online.target
+   Wants=network-online.target
+
+   [Service]
+   ExecStart=/usr/bin/socat OPENSSL-LISTEN:3123,reuseaddr,fork,cert=%h/.config/sn-tunnel/localhost.pem,verify=0 OPENSSL:<your-domain>:443,verify=1
+   Restart=always
+   RestartSec=3
+
+   [Install]
+   WantedBy=default.target
+   EOF
+   systemctl --user daemon-reload
+   systemctl --user enable --now sn-tunnel.service
+   loginctl enable-linger "$USER"
+   ```
+
+4. Verify the proxy (validating against your own certificate):
+
+   ```sh
+   curl --cacert ~/.config/sn-tunnel/localhost.crt https://localhost:3123/healthcheck
+   ```
+
+   An `OK` response means the proxy presents your `localhost` certificate and reaches the server.
+
+With either option, set the desktop app's custom sync server to `https://localhost:3123`, sign out fully, and sign back in — the premium editors unlock. Sessions are bound to the address, so a session created against another address (the LAN or public domain) will not carry the unlock; sign in fresh on `localhost:3123`.
+
+> `systemctl --user enable --now` does **not** restart an already-running service. If you change the unit file, run `systemctl --user restart sn-tunnel.service`. With a snap install, re-run the `certutil` import after each snap revision update.
 
 ### Limitations
 
 - **Mobile and other devices:** there is no `localhost` server on a phone, so the tunnel cannot work there. Premium on the official mobile apps against a self-hosted server is not achievable.
-- **Custom public domains:** a domain such as `notes.example.com` is still a third-party host, so premium stays locked even over a public HTTPS address. Sync itself works everywhere.
+- **Custom public domains (direct connection):** pointing the app straight at a domain such as `notes.example.com` is still a third-party host, so premium stays locked; sync works. You can, however, use that domain as the upstream for a `localhost:3123` tunnel (see **Option B** above), which does unlock premium.
 - **Offline activation does not work here:** the home server's offline-features endpoint cannot identify the user in single-process mode, and the apps only accept `localhost` as an offline features host, so this path is a dead end.
 - The only way to get tunnel-free premium (including on mobile) is to run a **patched Standard Notes app** that adds your host to its first-party allowlist — a separate project outside this package.
 
